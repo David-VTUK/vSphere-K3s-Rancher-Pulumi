@@ -1,0 +1,70 @@
+#cloud-config
+write_files:
+  - path: /var/lib/rancher/k3s/server/manifests/rancher-certmanager-metallb.yaml
+    content: |
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: cert-manager
+      ---
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: metallb-system
+      ---
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: cattle-system
+      ---
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        namespace: metallb-system
+        name: metallb-config
+      data:
+        config: |
+          address-pools:
+          - name: default
+            protocol: layer2
+            addresses:
+            - $METALLB_RANGE_START-$METALLB_RANGE_FINISH
+      ---
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChart
+      metadata:
+        name: cert-manager
+        namespace: kube-system
+      spec:
+        chart: cert-manager
+        targetNamespace: cert-manager
+        repo: https://charts.jetstack.io
+        set:
+          installCRDs: "true"
+      ---
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChart
+      metadata:
+        name: metallb
+        namespace: kube-system
+      spec:
+        chart: metallb
+        targetNamespace: metallb-system
+        repo: https://charts.bitnami.com/bitnami
+        set:
+          existingConfigMap: metallb-config
+      ---
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChart
+      metadata:
+        name: rancher
+        namespace: kube-system
+      spec:
+        chart: rancher
+        targetNamespace: cattle-system
+        repo: https://releases.rancher.com/server-charts/latest
+        set:
+         hostname: $RANCHER_URL
+         replicas: 3
+runcmd:
+  - curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--cluster-init --disable servicelb" K3S_TOKEN="super-secret" sh -
