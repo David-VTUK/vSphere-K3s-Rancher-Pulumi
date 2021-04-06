@@ -19,3 +19,13 @@ This project leverages `cloud-init` as a bootstrap mechanism for installing K3s,
 * Rename `Pulumi.dev.yaml.example` to `Pulumi.dev.yaml`
 * Populate respective to your environment
 * Set the vSphere provider details: https://www.pulumi.com/docs/intro/cloud-providers/vsphere/setup/
+
+Upon completion, Pulumi will output the DNS record that needs to be created:
+
+```shell
+Outputs:
+    Rancher IP (Set DNS): "172.16.10.167"
+    Rancher url:        : "rancher.virtualthoughts.co.uk"
+```
+
+It will take a few minutes, depending on performance and connection speed for Rancher to come online. You can grab the kubeconfig from the k3s nodes directly to validate.
