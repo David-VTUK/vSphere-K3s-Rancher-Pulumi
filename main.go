@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/pulumi/pulumi-vsphere/sdk/v2/go/vsphere"
-	"github.com/pulumi/pulumi/sdk/v2/go/pulumi"
-	"github.com/pulumi/pulumi/sdk/v2/go/pulumi/config"
+	"github.com/pulumi/pulumi-vsphere/sdk/v3/go/vsphere"
+	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -93,7 +93,7 @@ func main() {
 		for i := 0; i < 3; i++ {
 
 			// Rename VM via cloud-init metadata
-			replacedMetaData := strings.Replace(string(metaData), "cloud-vm", vmPrefixName+strconv.Itoa(i), -1)
+			replacedMetaData := strings.Replace(string(metaData), "cloud-vm", vmPrefixName+strconv.Itoa(i+1), -1)
 			encodedMetaData := base64.StdEncoding.EncodeToString([]byte(replacedMetaData))
 
 			// Bootstrap k3s install via cloud-init userdata
@@ -115,7 +115,7 @@ func main() {
 					Memory:         pulumi.Int(4096),
 					NumCpus:        pulumi.Int(4),
 					DatastoreId:    pulumi.String(datastore.Id),
-					Name:           pulumi.String(vmPrefixName + strconv.Itoa(i)),
+					Name:           pulumi.String(vmPrefixName + strconv.Itoa(i+1)),
 					ResourcePoolId: pulumi.String(resourcepool.Id),
 					GuestId:        pulumi.String(template.GuestId),
 					ExtraConfig: pulumi.StringMap{"guestinfo.userdata.encoding": pulumi.String("base64"),
@@ -144,9 +144,9 @@ func main() {
 			} else {
 
 				// Extract the concrete value of the first VM's IP address, required to join subsequent nodes to the cluster
-				join := vms[0].DefaultIpAddress.ApplyString(func(ipaddress string) string {
+				join := vms[0].DefaultIpAddress.ApplyT(func(ipaddress string) string {
 					return base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("#cloud-config \nruncmd: \n  - curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC=\"server\" K3S_URL=https://%s:6443 K3S_TOKEN=\"super-secret\" sh -", ipaddress)))
-				})
+				}).(pulumi.StringOutput)
 
 				vm, err := vsphere.NewVirtualMachine(
 					ctx,
@@ -155,7 +155,7 @@ func main() {
 						Memory:         pulumi.Int(4096),
 						NumCpus:        pulumi.Int(4),
 						DatastoreId:    pulumi.String(datastore.Id),
-						Name:           pulumi.String(vmPrefixName + strconv.Itoa(i)),
+						Name:           pulumi.String(vmPrefixName + strconv.Itoa(i+1)),
 						ResourcePoolId: pulumi.String(resourcepool.Id),
 						GuestId:        pulumi.String(template.GuestId),
 						ExtraConfig: pulumi.StringMap{"guestinfo.userdata.encoding": pulumi.String("base64"),
@@ -181,6 +181,7 @@ func main() {
 				vms = append(vms, vm)
 			}
 		}
+
 		ctx.Export("Rancher url:", pulumi.String(rancherURLName))
 		ctx.Export("Rancher IP (Set DNS)", pulumi.String(metallbRangeStart))
 		return nil
